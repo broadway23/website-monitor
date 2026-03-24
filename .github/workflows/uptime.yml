@@ -1,5 +1,5 @@
 name: Website Monitor
-# trigger scheduler
+# forece scheduler refresh
 on:
   schedule:
     - cron: "*/5 * * * *"
