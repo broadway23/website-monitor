@@ -13,7 +13,7 @@ jobs:
       - name: Check website
         id: sitecheck
         env:
-          URL: https://yourdomain.com
+          URL: https://yourdomain.com/2222222
         run: |
           STATUS=$(curl -L -s -o /tmp/site.html -w "%{http_code}" --max-time 20 "$URL" || echo "000")
           echo "Status: $STATUS"
@@ -23,7 +23,7 @@ jobs:
         if: steps.sitecheck.outputs.status != '200'
         run: |
           MSG="🚨 Website DOWN
-          URL: https://yourdomain.com
+          URL: https://yourdomain.com/2222222
           Status: ${{ steps.sitecheck.outputs.status }}"
 
           curl -s -X POST "https://api.telegram.org/bot8588516671:AAFrmypc4_3jEkiXc-CTZ3WV7mwJmQSRxhk/sendMessage" \
