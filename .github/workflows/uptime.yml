@@ -1,0 +1,33 @@
+name: Website Monitor
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check website
+        env:
+          URL: https://bettyit.com 
+        run: |
+          STATUS=$(curl -L -s -o /tmp/site.html -w "%{http_code}" --max-time 20 "$URL" || echo "000")
+
+          echo "Status: $STATUS"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "DOWN_REASON=Bad status: $STATUS" >> $GITHUB_ENV
+            exit 1
+          fi
+
+      - name: Notify Telegram on failure
+        if: failure()
+        run: |
+          MSG="🚨 Website DOWN
+          URL: https://bettyit.com/
+          Reason: ${DOWN_REASON:-Unknown error}"
+
+          curl -s -X POST "https://api.telegram.org/bot8588516671:AAFrmypc4_3jEkiXc-CTZ3WV7mwJmQSRxhk/sendMessage" \ -d "chat_id=615992515" \ --data-urlencode "text=$MSG"
