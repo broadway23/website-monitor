@@ -1,4 +1,4 @@
-name: Website Monitor
+name: betty.online Monitor
 # forece scheduler refresh
 on:
   schedule:
@@ -22,7 +22,7 @@ jobs:
         env:
           URL: https://bettyit.com 
         run: |
-          STATE_FILE=".github/monitor-state.json"
+          STATE_FILE=".github/monitor-state-betty-online.json"
 
           NOW=$(date +%s)
 
@@ -62,7 +62,7 @@ jobs:
             FIRST_DOWN_AT="$NOW"
             LAST_ALERT_AT="$NOW"
             SEND_ALERT=true
-            ALERT_TEXT="🚨 Website DOWN
+            ALERT_TEXT="🚨 betty-online.com DOWN
           URL: $URL
           Status: $HTTP_STATUS"
           else
@@ -74,7 +74,7 @@ jobs:
               LAST_ALERT_AT="$NOW"
               SEND_ALERT=true
               MINUTES_DOWN=$((DOWN_FOR / 60))
-              ALERT_TEXT="🚨 Website STILL DOWN
+              ALERT_TEXT="🚨 betty-online.com STILL DOWN
           URL: $URL
           Status: $HTTP_STATUS
           Down for: ${MINUTES_DOWN} minutes"
