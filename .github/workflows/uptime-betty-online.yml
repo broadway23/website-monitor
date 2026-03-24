@@ -20,7 +20,7 @@ jobs:
         id: monitor
         shell: bash
         env:
-          URL: https://bettyit.com 
+          URL: https://betty-online.com 
         run: |
           STATE_FILE=".github/monitor-state-betty-online.json"
 
