@@ -5,31 +5,109 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check website
-        id: sitecheck
-        env:
-          URL: https://yourdomain.com/2222222
-        run: |
-          STATUS=$(curl -L -s -o /tmp/site.html -w "%{http_code}" --max-time 20 "$URL" || echo "000")
-          echo "Status: $STATUS"
-          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - name: Send Telegram if site is down
-        if: steps.sitecheck.outputs.status != '200'
+      - name: Check website and decide whether to alert
+        id: monitor
+        shell: bash
+        env:
+          URL: https://bettyit.com 
         run: |
-          MSG="🚨 Website DOWN
-          URL: https://yourdomain.com/2222222
-          Status: ${{ steps.sitecheck.outputs.status }}"
+          STATE_FILE=".github/monitor-state.json"
+
+          NOW=$(date +%s)
+
+          if [ -f "$STATE_FILE" ]; then
+            FIRST_DOWN_AT=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('first_down_at',''))")
+            LAST_ALERT_AT=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('last_alert_at',''))")
+            STATUS_STATE=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('status','up'))")
+          else
+            FIRST_DOWN_AT=""
+            LAST_ALERT_AT=""
+            STATUS_STATE="up"
+          fi
+
+          HTTP_STATUS=$(curl -L -s -o /tmp/site.html -w "%{http_code}" --max-time 20 "$URL" || echo "000")
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Previous state: $STATUS_STATE"
+
+          SEND_ALERT=false
+          ALERT_TEXT=""
+
+          if [ "$HTTP_STATUS" = "200" ]; then
+            # Site is up again: reset state
+            mkdir -p .github
+            cat > "$STATE_FILE" <<EOF
+          {"status":"up","first_down_at":"","last_alert_at":""}
+          EOF
+
+            echo "send_alert=false" >> "$GITHUB_OUTPUT"
+            echo "site_status=up" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Site is down
+          if [ "$STATUS_STATE" != "down" ] || [ -z "$FIRST_DOWN_AT" ]; then
+            # First time detecting downtime
+            FIRST_DOWN_AT="$NOW"
+            LAST_ALERT_AT="$NOW"
+            SEND_ALERT=true
+            ALERT_TEXT="🚨 Website DOWN
+          URL: $URL
+          Status: $HTTP_STATUS"
+          else
+            # Already down before
+            DOWN_FOR=$((NOW - FIRST_DOWN_AT))
+            SINCE_LAST_ALERT=$((NOW - LAST_ALERT_AT))
+
+            if [ "$DOWN_FOR" -ge 600 ] && [ "$SINCE_LAST_ALERT" -ge 600 ]; then
+              LAST_ALERT_AT="$NOW"
+              SEND_ALERT=true
+              MINUTES_DOWN=$((DOWN_FOR / 60))
+              ALERT_TEXT="🚨 Website STILL DOWN
+          URL: $URL
+          Status: $HTTP_STATUS
+          Down for: ${MINUTES_DOWN} minutes"
+            fi
+          fi
+
+          mkdir -p .github
+          cat > "$STATE_FILE" <<EOF
+          {"status":"down","first_down_at":"$FIRST_DOWN_AT","last_alert_at":"$LAST_ALERT_AT"}
+          EOF
+
+          {
+            echo "send_alert=$SEND_ALERT"
+            echo "site_status=down"
+            echo "http_status=$HTTP_STATUS"
+            echo "alert_text<<EOF"
+            echo "$ALERT_TEXT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send Telegram alert
+        if: steps.monitor.outputs.send_alert == 'true'
+        run: |
+          MSG='${{ steps.monitor.outputs.alert_text }}'
 
           curl -s -X POST "https://api.telegram.org/bot8588516671:AAFrmypc4_3jEkiXc-CTZ3WV7mwJmQSRxhk/sendMessage" \
             -d "chat_id=615992515" \
             --data-urlencode "text=$MSG"
 
-      - name: Fail job if site is down
-        if: steps.sitecheck.outputs.status != '200'
-        run: exit 1
+      - name: Save updated state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/monitor-state.json
+          git diff --cached --quiet || git commit -m "Update monitor state"
+          git push
