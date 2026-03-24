@@ -1,8 +1,6 @@
 name: betty.online Monitor
-# forece scheduler refresh
+
 on:
-  schedule:
-    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,10 +18,9 @@ jobs:
         id: monitor
         shell: bash
         env:
-          URL: https://betty-online.com 
+          URL: https://betty-online.com
         run: |
           STATE_FILE=".github/monitor-state-betty-online.json"
-
           NOW=$(date +%s)
 
           if [ -f "$STATE_FILE" ]; then
@@ -45,7 +42,6 @@ jobs:
           ALERT_TEXT=""
 
           if [ "$HTTP_STATUS" = "200" ]; then
-            # Site is up again: reset state
             mkdir -p .github
             cat > "$STATE_FILE" <<EOF
           {"status":"up","first_down_at":"","last_alert_at":""}
@@ -56,9 +52,7 @@ jobs:
             exit 0
           fi
 
-          # Site is down
           if [ "$STATUS_STATE" != "down" ] || [ -z "$FIRST_DOWN_AT" ]; then
-            # First time detecting downtime
             FIRST_DOWN_AT="$NOW"
             LAST_ALERT_AT="$NOW"
             SEND_ALERT=true
@@ -66,7 +60,6 @@ jobs:
           URL: $URL
           Status: $HTTP_STATUS"
           else
-            # Already down before
             DOWN_FOR=$((NOW - FIRST_DOWN_AT))
             SINCE_LAST_ALERT=$((NOW - LAST_ALERT_AT))
 
@@ -108,6 +101,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/monitor-state.json
-          git diff --cached --quiet || git commit -m "Update monitor state"
+          git add .github/monitor-state-betty-online.json
+          git diff --cached --quiet || git commit -m "Update betty-online monitor state"
           git push
