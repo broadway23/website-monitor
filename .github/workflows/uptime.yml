@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Check website
         env:
-          URL: https://bettyit.com 
+          URL: https://bettyit.com/222
         run: |
           STATUS=$(curl -L -s -o /tmp/site.html -w "%{http_code}" --max-time 20 "$URL" || echo "000")
 
@@ -27,7 +27,7 @@ jobs:
         if: failure()
         run: |
           MSG="🚨 Website DOWN
-          URL: https://bettyit.com/
+          URL: https://bettyit.com/222
           Reason: ${DOWN_REASON:-Unknown error}"
 
           curl -s -X POST "https://api.telegram.org/bot8588516671:AAFrmypc4_3jEkiXc-CTZ3WV7mwJmQSRxhk/sendMessage" \ -d "chat_id=615992515" \ --data-urlencode "text=$MSG"
