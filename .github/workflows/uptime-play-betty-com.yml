@@ -42,13 +42,31 @@ jobs:
           ALERT_TEXT=""
 
           if [ "$HTTP_STATUS" = "200" ]; then
+            if [ "$STATUS_STATE" = "down" ] && [ -n "$FIRST_DOWN_AT" ]; then
+              DOWN_FOR=$((NOW - FIRST_DOWN_AT))
+              MINUTES_DOWN=$((DOWN_FOR / 60))
+
+              SEND_ALERT=true
+              ALERT_TEXT="✅ play.betty.com BACK UP
+          URL: $URL
+          Status: $HTTP_STATUS
+          Downtime: ${MINUTES_DOWN} minutes"
+            fi
+
             mkdir -p .github
             cat > "$STATE_FILE" <<EOF
           {"status":"up","first_down_at":"","last_alert_at":""}
           EOF
 
-            echo "send_alert=false" >> "$GITHUB_OUTPUT"
-            echo "site_status=up" >> "$GITHUB_OUTPUT"
+            {
+              echo "send_alert=$SEND_ALERT"
+              echo "site_status=up"
+              echo "http_status=$HTTP_STATUS"
+              echo "alert_text<<EOF"
+              echo "$ALERT_TEXT"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+
             exit 0
           fi
 
