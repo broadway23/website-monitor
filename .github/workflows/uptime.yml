@@ -11,23 +11,25 @@ jobs:
 
     steps:
       - name: Check website
+        id: sitecheck
         env:
-          URL: https://bettyit.com/222
+          URL: https://yourdomain.com
         run: |
           STATUS=$(curl -L -s -o /tmp/site.html -w "%{http_code}" --max-time 20 "$URL" || echo "000")
-
           echo "Status: $STATUS"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
 
-          if [ "$STATUS" != "200" ]; then
-            echo "DOWN_REASON=Bad status: $STATUS" >> $GITHUB_ENV
-            exit 1
-          fi
-
-      - name: Notify Telegram on failure
-        if: failure()
+      - name: Send Telegram if site is down
+        if: steps.sitecheck.outputs.status != '200'
         run: |
           MSG="🚨 Website DOWN
-          URL: https://bettyit.com/222
-          Reason: ${DOWN_REASON:-Unknown error}"
+          URL: https://yourdomain.com
+          Status: ${{ steps.sitecheck.outputs.status }}"
 
-          curl -s -X POST "https://api.telegram.org/bot8588516671:AAFrmypc4_3jEkiXc-CTZ3WV7mwJmQSRxhk/sendMessage" \ -d "chat_id=615992515" \ --data-urlencode "text=$MSG"
+          curl -s -X POST "https://api.telegram.org/bot8588516671:AAFrmypc4_3jEkiXc-CTZ3WV7mwJmQSRxhk/sendMessage" \
+            -d "chat_id=615992515" \
+            --data-urlencode "text=$MSG"
+
+      - name: Fail job if site is down
+        if: steps.sitecheck.outputs.status != '200'
+        run: exit 1
